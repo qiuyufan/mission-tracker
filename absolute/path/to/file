@@ -1,0 +1,1 @@
+echo -e "node_modules/\n.DS_Store\ndist/\n*.log\n.env" > .gitignore

@@ -1,4 +1,3 @@
-// Declare focusSession first, then attempt to rehydrate it from storage.
 let focusSession = {
     isActive: false,
     startTime: null,
@@ -7,9 +6,32 @@ let focusSession = {
     selectedGoal: null
 };
 
+let trackerWindow = null;
+
 chrome.storage.local.get(['focusSession'], (data) => {
     if (data.focusSession && data.focusSession.isActive) {
         focusSession = data.focusSession;
+    }
+});
+
+chrome.browserAction.onClicked.addListener(() => {
+    if (trackerWindow) {
+        chrome.windows.update(trackerWindow.id, { focused: true });
+    } else {
+        chrome.windows.create({
+            url: 'popup.html',
+            type: 'popup',
+            width: 440,
+            height: 600
+        }, (window) => {
+            trackerWindow = window;
+        });
+    }
+});
+
+chrome.windows.onRemoved.addListener((windowId) => {
+    if (trackerWindow && trackerWindow.id === windowId) {
+        trackerWindow = null;
     }
 });
 
