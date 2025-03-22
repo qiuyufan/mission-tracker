@@ -211,18 +211,32 @@
                     <select id="selectedGoal" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 8px;">
                         <option value="">Select a goal</option>
                     </select>
-                    <input type="number" id="focusDuration" min="60" max="180" value="60">
-                    <span>minutes</span>
+                    <div class="pomodoro-controls">
+                        <select id="pomodoroPreset" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 8px;">
+                            <option value="25">25 min</option>
+                            <option value="50">50 min</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <input type="number" id="focusDuration" min="1" max="180" value="25" style="display: none;">
+                        <span>minutes</span>
+                    </div>
                     <button id="toggleFocus">Start Focus</button>
                 </div>
+                <div class="session-status" id="sessionStatus"></div>
                 <div class="timer" id="focusTimer">00:00:00</div>
                 <button id="checkIn" class="check-in">✓ Did you focus today?</button>
             </div>
         </div>
 
         <div class="section">
-            <h2>Daily Journal</h2>
-            <textarea class="journal" id="journalEntry" placeholder="What did you work on today? Any insights or challenges?"></textarea>
+            <h2>Todo List</h2>
+            <div class="todo-container">
+                <div class="todo-input-container">
+                    <input type="text" id="todoInput" placeholder="Add a new task...">
+                    <button id="addTodo" class="save-btn">Add</button>
+                </div>
+                <ul class="todo-list" id="todoList"></ul>
+            </div>
         </div>
 
         <div class="section">
@@ -230,6 +244,10 @@
             <div class="stats">
                 <div>🔥 Streak: <span id="streakCount">0</span> days</div>
                 <div>⏱ This week: <span id="weeklyTime">0</span> hours</div>
+            </div>
+            <div class="achievements-section">
+                <h3>Your Forest</h3>
+                <div id="achievementBadges"></div>
             </div>
         </div>
     </div>

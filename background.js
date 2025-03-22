@@ -16,18 +16,30 @@ chrome.storage.local.get(['focusSession'], (data) => {
 
 chrome.browserAction.onClicked.addListener(() => {
     if (trackerWindow) {
-        chrome.windows.update(trackerWindow.id, { focused: true });
-    } else {
-        chrome.windows.create({
-            url: 'popup.html',
-            type: 'popup',
-            width: 440,
-            height: 600
-        }, (window) => {
-            trackerWindow = window;
+        // Check if the window still exists before focusing it
+        chrome.windows.get(trackerWindow.id, {}, (window) => {
+            if (chrome.runtime.lastError) {
+                // Window doesn't exist; create a new one
+                createTrackerWindow();
+            } else {
+                chrome.windows.update(trackerWindow.id, { focused: true });
+            }
         });
+    } else {
+        createTrackerWindow();
     }
 });
+
+function createTrackerWindow() {
+    chrome.windows.create({
+        url: 'popup.html',
+        type: 'popup',  // Using "popup" to mimic the standalone behavior of your old code
+        width: 440,
+        height: 600
+    }, (window) => {
+        trackerWindow = window;
+    });
+}
 
 chrome.windows.onRemoved.addListener((windowId) => {
     if (trackerWindow && trackerWindow.id === windowId) {
@@ -44,9 +56,8 @@ function updateTimer() {
     focusSession.elapsed = Math.min(elapsedSeconds, targetSeconds);
     
     if (elapsedSeconds >= targetSeconds) {
-        // Save the current elapsed time and selected goal before clearing the session.
         const finalElapsed = focusSession.elapsed;
-        const selectedGoal = focusSession.selectedGoal;  
+        const selectedGoal = focusSession.selectedGoal;
 
         console.log('[BG] Timer complete, finalElapsed:', finalElapsed, 'for goal:', selectedGoal);
         
@@ -55,7 +66,6 @@ function updateTimer() {
             const [tier, index] = selectedGoal.split('-');
             chrome.storage.local.get(['goals'], (data) => {
                 const goals = data.goals || {};
-                // Ensure that the tier exists and has an entry at the given index.
                 if (goals[tier] && goals[tier][index]) {
                     const goal = goals[tier][index];
                     const previousTimeSpent = goal.timeSpent || 0;
@@ -71,7 +81,7 @@ function updateTimer() {
             });
         }
         
-        // Now stop the session and clear selectedGoal to prevent auto‑restart.
+        // Stop the session and notify
         stopFocusSession();
         chrome.notifications.create('focusComplete', {
             type: 'basic',
@@ -92,7 +102,6 @@ function updateTimer() {
         }
     });
 }
-
 
 function startFocusSession(duration, selectedGoal) {
     const now = Date.now();
@@ -130,11 +139,10 @@ function stopFocusSession() {
             startTime: null,
             duration: 0,
             elapsed: focusSession.elapsed,
-            selectedGoal: null  // Clear this to prevent auto‑restart in the popup
+            selectedGoal: null
         } 
     });
 }
-
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'toggleFocusSession') {
