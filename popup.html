@@ -111,12 +111,21 @@
             background: #e9ecef;
             border-radius: 4px;
             overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        .progress-container:hover .progress {
+            background-color: #d1d7dc;
         }
 
         .progress-bar {
             height: 100%;
             background: #007aff;
             transition: width 0.3s ease;
+        }
+
+        .progress-container:hover .progress-bar {
+            background-color: #0056b3;
         }
 
         .progress-text {
@@ -221,6 +230,73 @@
         .achievements-section h3 {
             margin-bottom: 12px;
         }
+        
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 80%;
+            width: 350px;
+            text-align: center;
+        }
+        
+        /* Growth notification */
+        .growth-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Break time styling */
+        .break-time {
+            color: #28a745;
+            font-weight: 500;
+            background-color: rgba(40, 167, 69, 0.1);
+            padding: 5px 10px;
+            border-radius: 8px;
+        }
+        
+        /* Tree styles */
+        .forest-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            min-height: 100px;
+        }
+        
+        .tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -231,7 +307,7 @@
         </div>
 
         <div class="section">
-            <h2>Goals</h2>
+            <h2>🎯 Goals</h2>
             <div class="goals">
                 <div class="goal-tier">
                     <h3>Long-term Goals</h3>
@@ -249,7 +325,7 @@
         </div>
 
         <div class="section">
-            <h2>Focus Session</h2>
+            <h2>⏱ Focus Session</h2>
             <div class="focus-session">
                 <div class="focus-controls">
                     <select id="selectedGoal" style="padding: 10px; border: 1px solid #ced4da; border-radius: 8px; margin-right: 8px; font-family: 'Segoe UI', Roboto, sans-serif;">
@@ -257,8 +333,8 @@
                     </select>
                     <div class="pomodoro-controls">
                         <select id="pomodoroPreset" style="padding: 10px; border: 1px solid #ced4da; border-radius: 8px; margin-right: 8px; font-family: 'Segoe UI', Roboto, sans-serif;">
-                            <option value="25">25 min</option>
-                            <option value="50">50 min</option>
+                            <option value="pomodoro">Pomodoro (25/5)</option>
+                            <option value="deepFocus">Deep Focus (52/17)</option>
                             <option value="custom">Custom</option>
                         </select>
                         <input type="number" id="focusDuration" min="1" max="180" value="25" style="display: none;">
@@ -268,12 +344,11 @@
                 </div>
                 <div class="session-status" id="sessionStatus"></div>
                 <div class="timer" id="focusTimer">00:00:00</div>
-                <button id="checkIn" class="check-in">✓ Did you focus today?</button>
             </div>
         </div>
 
         <div class="section">
-            <h2>Todo List</h2>
+            <h2>📋 Todo List</h2>
             <div class="todo-container">
                 <div class="todo-input-container">
                     <input type="text" id="todoInput" placeholder="Add a new task...">
@@ -284,9 +359,8 @@
         </div>
 
         <div class="section">
-            <h2>Progress</h2>
+            <h2>🌱 Your Progress Garden</h2>
             <div class="achievements-section">
-                <h3>Your Forest</h3>
                 <div id="achievementBadges"></div>
             </div>
         </div>

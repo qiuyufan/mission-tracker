@@ -3,7 +3,7 @@
   "name": "Mission Tracker",
   "version": "1.0",
   "description": "Track your goals and focus sessions",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "notifications"],
   "background": {
     "scripts": ["background.js"],
     "persistent": true
@@ -13,7 +13,9 @@
       "16": "icon16.svg",
       "48": "icon48.svg",
       "128": "icon128.svg"
-    }
+    },
+    "default_title": "Mission Tracker"
+  
   },
   "icons": {
     "16": "icon16.svg",

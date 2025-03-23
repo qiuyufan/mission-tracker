@@ -4,11 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const focusButton = document.getElementById('toggleFocus');
     const focusDuration = document.getElementById('focusDuration');
     const focusTimer = document.getElementById('focusTimer');
-    const checkInButton = document.getElementById('checkIn');
     const todoInput = document.getElementById('todoInput');
     const addTodoButton = document.getElementById('addTodo');
-    const streakCount = document.getElementById('streakCount');
-    const weeklyTime = document.getElementById('weeklyTime');
     // Pause button removed
     const goalLists = {
         longTerm: document.getElementById('longTermGoals'),
@@ -20,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let isBreakTime = false;
     let breakDuration = 5; // Default break duration in minutes
     let isStoppingTimer = false; // Flag to track when we're stopping the timer
+    let pomodoroCount = 0; // Counter for completed Pomodoros
+    let pomodoroMode = 'pomodoro'; // Default mode: pomodoro, deepFocus, or custom
+    let isLongBreak = false; // Flag for long break after 4 Pomodoros
     // Pause functionality removed
 
     // Utility: Format seconds as HH:MM:SS
@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializePopup() {
         updateDate();
         loadGoals();
-        loadProgress();
         loadTodoList();
         updateFocusSessionState();
         updateGoalSelector();
@@ -42,63 +41,73 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAchievements();
     }
     
-    // Load and display user forest of achievements
+    // Load and display user garden of achievements
     function loadAchievements() {
         const badgesContainer = document.getElementById('achievementBadges');
         badgesContainer.innerHTML = '';
         
-        // Create forest container without title (removed duplicate heading)
+        // Create garden container
         const forestContainer = document.createElement('div');
         forestContainer.className = 'forest-container';
         
         badgesContainer.appendChild(forestContainer);
         
-        chrome.storage.local.get(['completedSessions', 'streak', 'weeklyStats'], (data) => {
+        chrome.storage.local.get(['completedSessions'], (data) => {
             const completedSessions = data.completedSessions || [];
             
             if (completedSessions.length === 0) {
                 const emptyForest = document.createElement('div');
                 emptyForest.className = 'empty-forest';
-                emptyForest.textContent = 'Complete focus sessions to grow your forest! 🌱';
+                emptyForest.textContent = 'Complete focus sessions to grow your garden! 🌱';
                 forestContainer.appendChild(emptyForest);
                 return;
             }
             
-            // Define tree types based on session duration
-            const getTreeType = (duration) => {
-                if (duration >= 50) return { icon: '🌳', name: 'Oak Tree', description: 'A mighty oak from a 50+ min session' };
-                if (duration >= 25) return { icon: '🌲', name: 'Pine Tree', description: 'A tall pine from a 25+ min session' };
-                return { icon: '🌱', name: 'Sapling', description: 'A young sapling from a short session' };
+            // Define garden elements based on session duration
+            const getGardenElement = (duration) => {
+                // For Pomodoro sessions (25 min)
+                if (duration === 25) return { icon: '🌷', name: 'Tulip', description: 'A tulip from a completed Pomodoro' };
+                // For completed sets of 4 Pomodoros or longer sessions
+                if (duration >= 50) return { icon: '🌻', name: 'Sunflower', description: 'A beautiful sunflower from a long focus session' };
+                // For medium length sessions
+                if (duration >= 25) return { icon: '🦋', name: 'Butterfly', description: 'A butterfly from a medium focus session' };
+                // For shorter sessions
+                return { icon: '🌱', name: 'Sprout', description: 'A young sprout from a short session' };
             };
             
-            // Render each tree for completed sessions
+            // Render each garden element for completed sessions
             completedSessions.forEach(session => {
-                const treeType = getTreeType(session.duration);
+                const gardenElement = getGardenElement(session.duration);
                 
                 const tree = document.createElement('div');
                 tree.className = 'tree';
                 
                 const treeIcon = document.createElement('div');
                 treeIcon.className = 'tree-icon';
-                treeIcon.textContent = treeType.icon;
+                treeIcon.textContent = gardenElement.icon;
                 
-                const treeDate = document.createElement('div');
-                treeDate.className = 'tree-date';
-                const sessionDate = new Date(session.completedAt);
-                treeDate.textContent = sessionDate.toLocaleDateString();
-                
-                // Add tooltip for tree details
-                tree.title = `${treeType.name}: ${treeType.description}\nCompleted on ${sessionDate.toLocaleDateString()}`;
+                // Add tooltip for garden element details
+                tree.title = `${gardenElement.name}: ${gardenElement.description}`;
                 
                 tree.appendChild(treeIcon);
-                tree.appendChild(treeDate);
                 forestContainer.appendChild(tree);
             });
             
-            // Add forest stats
+            // Add garden stats with more detailed information
             const forestStats = document.createElement('div');
             forestStats.className = 'forest-stats';
-            forestStats.innerHTML = `<span>🌱 Trees planted: ${completedSessions.length}</span>`;
+            
+            // Count different garden elements
+            const sproutCount = completedSessions.filter(s => s.duration < 25).length;
+            const butterflyCount = completedSessions.filter(s => s.duration >= 25 && s.duration < 50).length;
+            const sunflowerCount = completedSessions.filter(s => s.duration >= 50).length;
+            
+            forestStats.innerHTML = `
+                <span>🌱 Garden: ${completedSessions.length} elements total</span>
+                ${sunflowerCount > 0 ? `<span> • 🌻 ${sunflowerCount} sunflower${sunflowerCount !== 1 ? 's' : ''}</span>` : ''}
+                ${butterflyCount > 0 ? `<span> • 🦋 ${butterflyCount} butterfly${butterflyCount !== 1 ? 'ies' : 'y'}</span>` : ''}
+                ${sproutCount > 0 ? `<span> • 🌱 ${sproutCount} sprout${sproutCount !== 1 ? 's' : ''}</span>` : ''}
+            `;
             badgesContainer.appendChild(forestStats);
         });
     }
@@ -110,16 +119,162 @@ document.addEventListener('DOMContentLoaded', () => {
         
         pomodoroPreset.addEventListener('change', () => {
             const selectedValue = pomodoroPreset.value;
+            pomodoroMode = selectedValue;
+            
             if (selectedValue === 'custom') {
                 focusDurationInput.style.display = 'inline-block';
                 focusDurationInput.value = '25';
             } else {
                 focusDurationInput.style.display = 'none';
-                focusDurationInput.value = selectedValue;
+                
+                // Set duration based on preset
+                if (selectedValue === 'pomodoro') {
+                    focusDurationInput.value = '25';
+                } else if (selectedValue === 'deepFocus') {
+                    focusDurationInput.value = '52';
+                }
             }
         });
+        
+        // Initialize with default mode
+        if (pomodoroPreset.value === 'pomodoro') {
+            focusDurationInput.value = '25';
+            focusDurationInput.style.display = 'none';
+        }
     }
-
+    
+    // Show session transition in the timer area instead of modal
+    function showSessionTransitionModal(type, duration) {
+        const sessionStatus = document.getElementById('sessionStatus');
+        const timerEl = document.getElementById('focusTimer');
+        const breakCountdownContainer = document.createElement('div');
+        breakCountdownContainer.id = 'breakCountdown';
+        breakCountdownContainer.className = 'break-countdown';
+        
+        // Set message based on type
+        let message = '';
+        let icon = '';
+        
+        if (type === 'break') {
+            icon = '⏰';
+            if (isLongBreak) {
+                message = `${icon} Time's up! Take a ${duration}-minute long break`;
+            } else {
+                message = `${icon} Time's up! Take a ${duration}-minute break`;
+            }
+            
+            // Create break countdown UI
+            const countdownTime = duration * 60; // in seconds
+            timerEl.innerHTML = `<div class="break-timer">${formatTime(countdownTime)}</div>`;
+            
+            // Create break controls
+            const breakControls = document.createElement('div');
+            breakControls.className = 'break-controls';
+            
+            const startBreakBtn = document.createElement('button');
+            startBreakBtn.textContent = 'Start Break';
+            startBreakBtn.className = 'break-btn primary';
+            startBreakBtn.onclick = () => {
+                isBreakTime = true;
+                startFocusTimer(duration, null);
+                breakControls.remove();
+            };
+            
+            const skipBreakBtn = document.createElement('button');
+            skipBreakBtn.textContent = 'Skip Break';
+            skipBreakBtn.className = 'break-btn secondary';
+            skipBreakBtn.onclick = () => {
+                // Skip break and start next focus session
+                isBreakTime = false;
+                const selectedGoal = document.getElementById('selectedGoal').value;
+                const focusDuration = parseInt(document.getElementById('focusDuration').value);
+                startFocusTimer(focusDuration, selectedGoal);
+                breakControls.remove();
+            };
+            
+            breakControls.appendChild(startBreakBtn);
+            breakControls.appendChild(skipBreakBtn);
+            
+            sessionStatus.innerHTML = `<span class="break-time">${message}</span>`;
+            sessionStatus.appendChild(breakControls);
+            
+        } else if (type === 'focus') {
+            icon = '🌿';
+            message = `${icon} Break over! Ready for next focus session`;
+            
+            // Create focus controls
+            const focusControls = document.createElement('div');
+            focusControls.className = 'break-controls';
+            
+            const startFocusBtn = document.createElement('button');
+            startFocusBtn.textContent = 'Start Focus';
+            startFocusBtn.className = 'break-btn primary';
+            startFocusBtn.onclick = () => {
+                isBreakTime = false;
+                const selectedGoal = document.getElementById('selectedGoal').value;
+                const focusDuration = parseInt(document.getElementById('focusDuration').value);
+                startFocusTimer(focusDuration, selectedGoal);
+                focusControls.remove();
+            };
+            
+            const skipFocusBtn = document.createElement('button');
+            skipFocusBtn.textContent = 'Not Now';
+            skipFocusBtn.className = 'break-btn secondary';
+            skipFocusBtn.onclick = () => {
+                // Reset UI for next focus session
+                isBreakTime = false;
+                sessionStatus.textContent = 'Ready for next focus session.';
+                focusButton.textContent = 'Start Focus';
+                focusButton.classList.remove('active');
+                document.getElementById('pomodoroPreset').disabled = false;
+                if (document.getElementById('pomodoroPreset').value === 'custom') {
+                    focusDuration.style.display = 'inline-block';
+                    focusDuration.disabled = false;
+                }
+                focusControls.remove();
+            };
+            
+            focusControls.appendChild(startFocusBtn);
+            focusControls.appendChild(skipFocusBtn);
+            
+            sessionStatus.innerHTML = `<span class="break-time">${message}</span>`;
+            sessionStatus.appendChild(focusControls);
+            
+        } else if (type === 'reward') {
+            // Show garden growth notification in the timer area
+            if (pomodoroCount % 4 === 0) {
+                icon = '🌻';
+                message = `${icon} Congratulations! You grew a beautiful sunflower in your garden!`;
+            } else {
+                icon = '🌷';
+                message = `${icon} Nice! You added a new flower to your garden!`;
+            }
+            
+            sessionStatus.innerHTML = `<span class="reward-message">${message}</span>`;
+            
+            // Automatically start break after showing reward message
+            setTimeout(() => {
+                if (isLongBreak) {
+                    showSessionTransitionModal('break', 15);
+                } else {
+                    showSessionTransitionModal('break', breakDuration);
+                }
+                // Refresh the forest display
+                loadAchievements();
+            }, 2000);
+        }
+        
+        // Play sound alert
+        playAlertSound();
+    }
+    
+    // Play sound alert when sessions end
+    function playAlertSound() {
+        // Using a short, valid audio data for the alert sound
+        const audio = new Audio('data:audio/wav;base64,UklGRl9CAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTtCAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj2a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVqzn77BdGAg+ltryxnUoBSl+zPLaizsIGGS57OihUBELTKXh8bllHgU2jdXzzn0vBSF1xe/glEILElyx6OyrWBUIQ5zd8sFuJAUuhM/z1YU2Bhxqvu7mnEoODlOq5O+zYBoGPJPY88p4KwUme8rx3I4+CRZiturqpVITC0mi4PK8aB8GM4nU8tGAMQYfcsLu45ZFDBFYr+ftrVoXCECY3PLEcSYELIHO8diJOQcZaLvt559NEAxPqOPwtmMcBjiP1/PMeS0GI3fH8OCRQQoUXrTp66hVFApGnt/yvmwhBTCG0fPTgjQGHW/A7eSaRw0PVqzl77BeGQc+ltvyxnUoBSh+zPDaizsIGGS57OihUBELTKXh8bllHgU1jdT0z3wvBSJ0xe/glEILElyx6OyrWRUJQ5vd88FuJAUug8/y1oU2Bhxqvu7mnEoPDVOq5O+zYRsGPJLY88p4KgUme8rx3I4+CRVht+rqpVMSC0mh4fK8aiAFM4nU8tGAMQYfccPu45ZEDBJYr+ftrVoXCECZ3PLEcSYGK4DN8tiIOQcZZ7zs56BODwxPpuPxtmQcBjiP1/PMeS0FI3fH8OCRQQsUXrTp66hVFApGnt/zvmwhBTCG0fPTgzQHHG/A7eSaSA0PVqvm77BeGQc+lNrzyHUpBCh9y/HajDwIF2S46+mjTxEL');
+        audio.play();
+    }
+    
     // Extract important keywords from a goal title
     function extractKeywords(title) {
         if (!title) return '';
@@ -131,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const words = title.split(' ')
             .filter(word => {
                 // Keep words that are not in the common words list and have at least 3 characters
-                // This helps focus on more meaningful words
                 return !commonWords.includes(word.toLowerCase()) && word.length >= 3;
             });
         
@@ -149,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return words.join(' ');
     }
     
+    // Fixed updateGoalSelector function declaration
     function updateGoalSelector() {
         const selector = document.getElementById('selectedGoal');
         selector.innerHTML = '<option value="">Select a goal</option>';
@@ -168,16 +323,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         const today = new Date();
                         const daysLeft = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
                         
-                        // Prioritize goals with approaching deadlines
                         if (daysLeft >= 0 && daysLeft < earliestDeadline) {
                             earliestDeadline = daysLeft;
                             priorityGoal = { tier, index, goal };
                         }
                         
-                        // Also consider goals with low progress
                         if ((goal.progress || 0) < lowestProgress) {
                             lowestProgress = goal.progress || 0;
-                            // Only override deadline priority if progress is significantly lower
                             if (!priorityGoal || lowestProgress < 30) {
                                 priorityGoal = { tier, index, goal };
                             }
@@ -186,7 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
             
-            // Add all goals to selector
             Object.entries(goals).forEach(([tier, tierGoals]) => {
                 if (tierGoals.length > 0) {
                     const group = document.createElement('optgroup');
@@ -197,11 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             const option = document.createElement('option');
                             option.value = `${tier}-${index}`;
                             
-                            // Extract keywords from the goal title instead of just the first word
                             const keywords = extractKeywords(goal.title);
                             option.textContent = keywords;
                             
-                            // Mark the priority goal
                             if (priorityGoal && tier === priorityGoal.tier && index === parseInt(priorityGoal.index)) {
                                 option.selected = true;
                             }
@@ -252,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply color coding to the goal item if a color is set
             if (goal.color) {
                 goalItem.style.borderLeft = `4px solid ${goal.color}`;
-                goalItem.style.backgroundColor = `${goal.color}10`; // Add a very light background color
+                goalItem.style.backgroundColor = `${goal.color}10`;
             }
     
             const goalContent = document.createElement('div');
@@ -270,7 +419,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const deadlineText = document.createElement('div');
                 deadlineText.className = 'goal-deadline';
                 
-                // Add icon based on deadline urgency
                 let deadlineIcon = '⏱';
                 if (daysLeft < 0) {
                     deadlineIcon = '⚠️';
@@ -318,8 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 deadline.type = 'date';
                 deadline.value = goal.deadline || '';
                 
-                // Remove color picker and use automatic color assignment
-
                 const saveBtn = document.createElement('button');
                 saveBtn.textContent = '💾';
                 saveBtn.className = 'save-btn';
@@ -332,7 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         ...goal, 
                         title: input.value, 
                         deadline: deadline.value,
-                        // Assign color based on tier
                         color: goal.color || getColorForTier(tier, index)
                     };
                     updateGoal(tier, index, updatedGoal);
@@ -379,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 deadline: '',
                 progress: 0,
                 timeSpent: 0,
-                color: getColorForTier(tier, goals[tier].length) // Assign color automatically
+                color: getColorForTier(tier, goals[tier].length)
             });
             chrome.storage.local.set({ goals }, () => loadGoals());
         });
@@ -387,19 +532,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to automatically assign colors based on tier and index
     function getColorForTier(tier, index) {
-    // Color palettes for each tier
-    const colorPalettes = {
-        longTerm: ['#8e44ad', '#9b59b6', '#8e44ad', '#7d3c98', '#6c3483'],
-        midTerm: ['#2980b9', '#3498db', '#2874a6', '#21618c', '#1b4f72'],
-        shortTerm: ['#27ae60', '#2ecc71', '#229954', '#1e8449', '#196f3d']
-    };
-    
-    // Get the appropriate palette
-    const palette = colorPalettes[tier] || colorPalettes.shortTerm;
-    
-    // Return a color from the palette based on index
-    return palette[index % palette.length];
+        const colorPalettes = {
+            longTerm: ['#8e44ad', '#9b59b6', '#8e44ad', '#7d3c98', '#6c3483'],
+            midTerm: ['#2980b9', '#3498db', '#2874a6', '#21618c', '#1b4f72'],
+            shortTerm: ['#27ae60', '#2ecc71', '#229954', '#1e8449', '#196f3d']
+        };
+        const palette = colorPalettes[tier] || colorPalettes.shortTerm;
+        return palette[index % palette.length];
     }
+
     function updateGoal(tier, index, value) {
         chrome.storage.local.get(['goals'], (data) => {
             const goals = data.goals || { longTerm: [], midTerm: [], shortTerm: [] };
@@ -424,7 +565,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Focus session management
     function updateFocusSessionState() {
-        // If we're in break time, don't update from storage
         if (isBreakTime) {
             return;
         }
@@ -441,11 +581,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 pomodoroPreset.disabled = true;
                 sessionStatus.textContent = 'Focus session in progress...';
                 
-                // Pause functionality removed
-                
-                // Only start the timer if one isn't already running AND we're not in the process of stopping
-                // This prevents auto-restart when stopping the timer
-                // This prevents auto-restart when stopping the timer
                 if (!focusInterval && !isStoppingTimer) {
                     startFocusTimer(session.duration, session.selectedGoal);
                 }
@@ -453,8 +588,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 focusButton.textContent = 'Start Focus';
                 focusButton.classList.remove('active');
                 pomodoroPreset.disabled = false;
-                
-                // Pause functionality removed
                 
                 if (pomodoroPreset.value === 'custom') {
                     focusDuration.style.display = 'inline-block';
@@ -471,58 +604,48 @@ document.addEventListener('DOMContentLoaded', () => {
                     focusInterval = null;
                 }
                 
-                // Reset the stopping flag
                 isStoppingTimer = false;
-                
-                // Reload the goals so that UI shows the accumulated time.
                 loadGoals();
             }
         });
     }
     
-
     function startFocusTimer(duration, selectedGoal) {
-        // Clear any previous timer interval.
         if (focusInterval) {
             clearInterval(focusInterval);
             focusInterval = null;
         }
 
         const sessionStatus = document.getElementById('sessionStatus');
+        const timerEl = document.getElementById('focusTimer');
         
-        // If we're in break time, handle differently
         if (isBreakTime) {
-            sessionStatus.innerHTML = `<span class="break-time">Break Time: ${breakDuration} minutes</span>`;
-            focusTimer.textContent = formatTime(breakDuration * 60);
+            // Break timer with visual countdown
+            sessionStatus.innerHTML = `<span class="break-time">Break Time: ${duration} minutes</span>`;
+            focusButton.textContent = 'Stop Break';
+            focusButton.classList.add('active');
             
-            // Start a break timer
-            const breakEndTime = Date.now() + (breakDuration * 60 * 1000);
+            const breakEndTime = Date.now() + (duration * 60 * 1000);
             
             focusInterval = setInterval(() => {
                 const now = Date.now();
                 const remaining = Math.max(0, Math.floor((breakEndTime - now) / 1000));
                 
-                focusTimer.textContent = formatTime(remaining);
+                timerEl.innerHTML = `<div class="break-timer">${formatTime(remaining)}</div>`;
                 
                 if (remaining <= 0) {
                     clearInterval(focusInterval);
                     focusInterval = null;
                     isBreakTime = false;
-                    sessionStatus.textContent = 'Break complete! Ready for next focus session.';
+                    showSessionTransitionModal('focus');
                     focusButton.textContent = 'Start Focus';
                     focusButton.classList.remove('active');
-                    document.getElementById('pomodoroPreset').disabled = false;
-                    if (document.getElementById('pomodoroPreset').value === 'custom') {
-                        focusDuration.style.display = 'inline-block';
-                        focusDuration.disabled = false;
-                    }
                 }
             }, 1000);
             
             return;
         }
 
-        // Signal background to start the focus session.
         chrome.runtime.sendMessage({
             action: 'toggleFocusSession',
             enable: true,
@@ -530,62 +653,77 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedGoal: selectedGoal
         });
         
-        // Set the timer display immediately.
-        focusTimer.textContent = formatTime(parseInt(duration) * 60);
+        timerEl.textContent = formatTime(parseInt(duration) * 60);
         sessionStatus.textContent = 'Focus session in progress...';
         document.getElementById('pomodoroPreset').disabled = true;
         focusDuration.disabled = true;
         
-        // Start an interval to update the timer display every second.
         focusInterval = setInterval(() => {
             chrome.storage.local.get(['focusSession'], (data) => {
                 const session = data.focusSession;
                 if (!session || !session.isActive) {
                     clearInterval(focusInterval);
                     focusInterval = null;
-                    focusTimer.textContent = '00:00:00';
+                    timerEl.textContent = '00:00:00';
                     updateFocusSessionState();
                     return;
                 }
                 
-                // Pause functionality removed
-    
                 const now = Date.now();
-                // Account for any paused time in the calculation
-                // Ensure totalPausedTime exists or default to 0
                 const totalPausedTime = session.totalPausedTime || 0;
                 const elapsedSeconds = Math.floor((now - session.startTime - totalPausedTime) / 1000);
                 const targetSeconds = parseInt(session.duration) * 60;
                 const remaining = Math.max(0, targetSeconds - elapsedSeconds);
                 
-                focusTimer.textContent = formatTime(remaining);
+                timerEl.textContent = formatTime(remaining);
     
                 if (remaining <= 0) {
                     clearInterval(focusInterval);
                     focusInterval = null;
                     
-                    // Start a break after focus session
-                    isBreakTime = true;
-                    // Set break duration based on focus duration
-                    breakDuration = parseInt(duration) >= 50 ? 10 : 5;
-                    sessionStatus.innerHTML = `<span class="break-time">Time for a ${breakDuration}-minute break!</span>`;
+                    if (!isBreakTime && selectedGoal) {
+                        if (pomodoroMode === 'pomodoro' && parseInt(duration) === 25) {
+                            pomodoroCount++;
+                            
+                            if (pomodoroCount % 4 === 0) {
+                                isLongBreak = true;
+                                breakDuration = 15;
+                            } else {
+                                isLongBreak = false;
+                                breakDuration = 5;
+                            }
+                        } else if (pomodoroMode === 'deepFocus' && parseInt(duration) === 52) {
+                            breakDuration = 17;
+                        } else {
+                            breakDuration = parseInt(duration) >= 50 ? 10 : 5;
+                        }
+                        
+                        chrome.storage.local.get(['completedSessions'], (data) => {
+                            const completedSessions = data.completedSessions || [];
+                            completedSessions.push({
+                                duration: parseInt(duration),
+                                completedAt: new Date().toISOString(),
+                                goal: selectedGoal
+                            });
+                            chrome.storage.local.set({ completedSessions }, () => {
+                                showSessionTransitionModal('reward');
+                                // Refresh the forest display immediately
+                                loadAchievements();
+                            });
+                        });
+                    } else {
+                        showSessionTransitionModal('focus');
+                    }
                     
-                    // Start the break timer
-                    startFocusTimer(breakDuration, null);
+                    isBreakTime = true;
+                    
                     updateFocusSessionState();
                 }
             });
         }, 1000);
     }
 
-    // Progress tracking
-    function loadProgress() {
-        chrome.storage.local.get(['streak', 'weeklyStats'], (data) => {
-            streakCount.textContent = data.streak?.current || 0;
-            const hours = Math.round((data.weeklyStats?.totalTime || 0) / 3600);
-            weeklyTime.textContent = hours;
-        });
-    }
+    // Progress tracking function removed
 
     // Todo list management
     function loadTodoList() {
@@ -700,10 +838,8 @@ document.addEventListener('DOMContentLoaded', () => {
             focusButton.textContent = 'Stop Focus';
             focusButton.classList.add('active');
             
-            // Start the focus session
             startFocusTimer(duration, selectedGoal);
             
-            // Toggle the focus session in background
             chrome.runtime.sendMessage({
                 action: 'toggleFocusSession',
                 enable: true,
@@ -713,10 +849,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } 
         // If we're stopping an active focus session
         else if (isActive && !isBreakTime) {
-            // Set the stopping flag to prevent auto-restart
             isStoppingTimer = true;
             
-            // Stop the focus session
             chrome.runtime.sendMessage({
                 action: 'toggleFocusSession',
                 enable: false
@@ -737,12 +871,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    checkInButton.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ action: 'updateStreak', didFocus: true });
-        checkInButton.disabled = true;
-    });
+    // Check-in button event listener removed
 
-    // Todo list event listeners
     addTodoButton.addEventListener('click', () => {
         addTodo(todoInput.value);
         todoInput.value = '';
