@@ -7,29 +7,32 @@
         body {
             min-width: 400px;
             padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell;
-            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: white;
             margin: 0;
+            color: #333;
         }
 
         .container {
             display: flex;
             flex-direction: column;
             gap: 20px;
+            max-width: 400px;
+            margin: 0 auto;
         }
 
         .section {
-            background: #f8f9fa;
-            padding: 16px;
+            background: white;
+            padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .date {
@@ -39,54 +42,57 @@
 
         h2 {
             margin: 0;
-            font-size: 18px;
-            color: #212529;
+            font-size: 20px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #333;
+            font-weight: 500;
         }
 
         .goals {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
         }
 
         .goal-tier {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-        }
-
-        .goal-tier h3 {
-            margin: 0;
-            font-size: 14px;
-            color: #495057;
+            gap: 10px;
         }
 
         .goal-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
         }
 
         .goal-item {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            padding: 12px;
+            gap: 10px;
+            padding: 16px;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
         }
 
         .goal-content {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             align-items: center;
         }
 
         .goal-item input {
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-family: 'Segoe UI', Roboto, sans-serif;
         }
 
         .goal-item input[type="text"] {
@@ -96,7 +102,7 @@
         .progress-container {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .progress {
@@ -109,7 +115,7 @@
 
         .progress-bar {
             height: 100%;
-            background: #0d6efd;
+            background: #007aff;
             transition: width 0.3s ease;
         }
 
@@ -123,7 +129,7 @@
         .focus-session {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
         }
 
         .focus-controls {
@@ -132,35 +138,42 @@
             align-items: center;
         }
 
+        input[type="number"], select {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+
         input[type="number"] {
             width: 80px;
-            padding: 8px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
         }
 
         .save-btn {
-            padding: 4px 8px;
+            padding: 8px 12px;
             border: none;
-            border-radius: 4px;
-            background: #198754;
+            border-radius: 8px;
+            background: #007aff;
             color: white;
             cursor: pointer;
             transition: all 0.2s;
             font-size: 14px;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
         }
 
         .save-btn:hover {
-            background: #157347;
+            background: #0056b3;
         }
 
         .journal {
             width: 100%;
             min-height: 60px;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
+            border-radius: 8px;
             resize: vertical;
+            font-family: 'Segoe UI', Roboto, sans-serif;
         }
 
         .stats {
@@ -168,14 +181,45 @@
             justify-content: space-between;
             font-size: 14px;
             color: #6c757d;
+            margin-bottom: 16px;
         }
 
         .timer {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            color: #0d6efd;
+            color: #007aff;
             text-align: center;
-            margin: 8px 0;
+            margin: 12px 0;
+        }
+
+        .todo-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .todo-input-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .todo-input-container input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .todo-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .achievements-section h3 {
+            margin-bottom: 12px;
         }
     </style>
 </head>
@@ -208,11 +252,11 @@
             <h2>Focus Session</h2>
             <div class="focus-session">
                 <div class="focus-controls">
-                    <select id="selectedGoal" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 8px;">
+                    <select id="selectedGoal" style="padding: 10px; border: 1px solid #ced4da; border-radius: 8px; margin-right: 8px; font-family: 'Segoe UI', Roboto, sans-serif;">
                         <option value="">Select a goal</option>
                     </select>
                     <div class="pomodoro-controls">
-                        <select id="pomodoroPreset" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 8px;">
+                        <select id="pomodoroPreset" style="padding: 10px; border: 1px solid #ced4da; border-radius: 8px; margin-right: 8px; font-family: 'Segoe UI', Roboto, sans-serif;">
                             <option value="25">25 min</option>
                             <option value="50">50 min</option>
                             <option value="custom">Custom</option>
@@ -241,10 +285,6 @@
 
         <div class="section">
             <h2>Progress</h2>
-            <div class="stats">
-                <div>🔥 Streak: <span id="streakCount">0</span> days</div>
-                <div>⏱ This week: <span id="weeklyTime">0</span> hours</div>
-            </div>
             <div class="achievements-section">
                 <h3>Your Forest</h3>
                 <div id="achievementBadges"></div>

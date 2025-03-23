@@ -120,10 +120,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Extract important keywords from a goal title
+    function extractKeywords(title) {
+        if (!title) return '';
+        
+        // Common words to filter out (articles, prepositions, etc.)
+        const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about', 'as', 'of'];
+        
+        // Split the title into words and filter out common words
+        const words = title.split(' ')
+            .filter(word => {
+                // Keep words that are not in the common words list and have at least 3 characters
+                // This helps focus on more meaningful words
+                return !commonWords.includes(word.toLowerCase()) && word.length >= 3;
+            });
+        
+        // If no significant words found, return the first word of the original title
+        if (words.length === 0) {
+            return title.split(' ')[0];
+        }
+        
+        // If the title has many significant words, limit to the first 2-3 most important ones
+        if (words.length > 3) {
+            return words.slice(0, 2).join(' ');
+        }
+        
+        // Return the significant words joined together
+        return words.join(' ');
+    }
+    
     function updateGoalSelector() {
         const selector = document.getElementById('selectedGoal');
         selector.innerHTML = '<option value="">Select a goal</option>';
-
+    
         chrome.storage.local.get(['goals'], (data) => {
             const goals = data.goals || { longTerm: [], midTerm: [], shortTerm: [] };
             
@@ -142,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Prioritize goals with approaching deadlines
                         if (daysLeft >= 0 && daysLeft < earliestDeadline) {
                             earliestDeadline = daysLeft;
-                            priorityGoal = { tier, index, goal, reason: 'nearest deadline' };
+                            priorityGoal = { tier, index, goal };
                         }
                         
                         // Also consider goals with low progress
@@ -150,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             lowestProgress = goal.progress || 0;
                             // Only override deadline priority if progress is significantly lower
                             if (!priorityGoal || lowestProgress < 30) {
-                                priorityGoal = { tier, index, goal, reason: 'least progress' };
+                                priorityGoal = { tier, index, goal };
                             }
                         }
                     }
@@ -167,12 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (goal.title) {
                             const option = document.createElement('option');
                             option.value = `${tier}-${index}`;
-                            option.textContent = goal.title;
+                            
+                            // Extract keywords from the goal title instead of just the first word
+                            const keywords = extractKeywords(goal.title);
+                            option.textContent = keywords;
                             
                             // Mark the priority goal
                             if (priorityGoal && tier === priorityGoal.tier && index === parseInt(priorityGoal.index)) {
                                 option.selected = true;
-                                option.textContent += ` (Suggested: ${priorityGoal.reason})`;
                             }
                             
                             group.appendChild(option);
@@ -287,11 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 deadline.type = 'date';
                 deadline.value = goal.deadline || '';
                 
-                // Add color picker
-                const colorPicker = document.createElement('input');
-                colorPicker.type = 'color';
-                colorPicker.value = goal.color || '#0d6efd';
-                colorPicker.className = 'color-picker';
+                // Remove color picker and use automatic color assignment
 
                 const saveBtn = document.createElement('button');
                 saveBtn.textContent = '💾';
@@ -305,14 +332,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         ...goal, 
                         title: input.value, 
                         deadline: deadline.value,
-                        color: colorPicker.value
+                        // Assign color based on tier
+                        color: goal.color || getColorForTier(tier, index)
                     };
                     updateGoal(tier, index, updatedGoal);
                 };
 
                 goalContent.appendChild(input);
                 goalContent.appendChild(deadline);
-                goalContent.appendChild(colorPicker);
                 goalContent.appendChild(saveBtn);
             }
     
@@ -352,12 +379,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 deadline: '',
                 progress: 0,
                 timeSpent: 0,
-                color: '#0d6efd' // Default color
+                color: getColorForTier(tier, goals[tier].length) // Assign color automatically
             });
             chrome.storage.local.set({ goals }, () => loadGoals());
         });
     }
 
+    // Function to automatically assign colors based on tier and index
+    function getColorForTier(tier, index) {
+    // Color palettes for each tier
+    const colorPalettes = {
+        longTerm: ['#8e44ad', '#9b59b6', '#8e44ad', '#7d3c98', '#6c3483'],
+        midTerm: ['#2980b9', '#3498db', '#2874a6', '#21618c', '#1b4f72'],
+        shortTerm: ['#27ae60', '#2ecc71', '#229954', '#1e8449', '#196f3d']
+    };
+    
+    // Get the appropriate palette
+    const palette = colorPalettes[tier] || colorPalettes.shortTerm;
+    
+    // Return a color from the palette based on index
+    return palette[index % palette.length];
+    }
     function updateGoal(tier, index, value) {
         chrome.storage.local.get(['goals'], (data) => {
             const goals = data.goals || { longTerm: [], midTerm: [], shortTerm: [] };
@@ -402,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Pause functionality removed
                 
                 // Only start the timer if one isn't already running AND we're not in the process of stopping
+                // This prevents auto-restart when stopping the timer
                 // This prevents auto-restart when stopping the timer
                 if (!focusInterval && !isStoppingTimer) {
                     startFocusTimer(session.duration, session.selectedGoal);
