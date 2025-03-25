@@ -39,6 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateGoalSelector();
         setupPomodoroControls();
         loadAchievements();
+        
+        // Listen for messages from background script
+        chrome.runtime.onMessage.addListener((message) => {
+            if (message.action === 'refreshGarden') {
+                console.log('[Popup] Received garden refresh message');
+                loadAchievements();
+            }
+        });
     }
     
     // Load and display user garden of achievements
@@ -63,16 +71,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // Define garden elements based on session duration
+            // Define garden elements based on session duration with random variations
             const getGardenElement = (duration) => {
+                // Garden-themed icons for different session types
+                const pomodoroIcons = ['🌷', '🌿', '🍀', '🍓', '🍄', '🌱'];
+                const longSessionIcons = ['🌻', '🌳', '🌴', '🌵', '🌸', '🍎'];
+                const mediumSessionIcons = ['🦋', '🐝', '🐞', '🌺', '🌼', '🌹'];
+                const shortSessionIcons = ['🌱', '🌾', '🍃', '🌿', '🍀', '🌱'];
+                
+                // Get random icon from the appropriate array
+                const getRandomIcon = (iconArray) => {
+                    return iconArray[Math.floor(Math.random() * iconArray.length)];
+                };
+                
                 // For Pomodoro sessions (25 min)
-                if (duration === 25) return { icon: '🌷', name: 'Tulip', description: 'A tulip from a completed Pomodoro' };
+                if (duration === 25) {
+                    const icon = getRandomIcon(pomodoroIcons);
+                    return { icon, name: 'Flower', description: 'A beautiful flower from a completed Pomodoro' };
+                }
                 // For completed sets of 4 Pomodoros or longer sessions
-                if (duration >= 50) return { icon: '🌻', name: 'Sunflower', description: 'A beautiful sunflower from a long focus session' };
+                if (duration >= 50) {
+                    const icon = getRandomIcon(longSessionIcons);
+                    return { icon, name: 'Sunflower', description: 'A beautiful plant from a long focus session' };
+                }
                 // For medium length sessions
-                if (duration >= 25) return { icon: '🦋', name: 'Butterfly', description: 'A butterfly from a medium focus session' };
+                if (duration >= 25) {
+                    const icon = getRandomIcon(mediumSessionIcons);
+                    return { icon, name: 'Garden Friend', description: 'A garden friend from a medium focus session' };
+                }
                 // For shorter sessions
-                return { icon: '🌱', name: 'Sprout', description: 'A young sprout from a short session' };
+                const icon = getRandomIcon(shortSessionIcons);
+                return { icon, name: 'Sprout', description: 'A young sprout from a short session' };
             };
             
             // Render each garden element for completed sessions
@@ -172,23 +201,57 @@ document.addEventListener('DOMContentLoaded', () => {
             breakControls.className = 'break-controls';
             
             const startBreakBtn = document.createElement('button');
-            startBreakBtn.textContent = 'Start Break';
+            startBreakBtn.textContent = `Take a ${duration}-min break`;
             startBreakBtn.className = 'break-btn primary';
             startBreakBtn.onclick = () => {
                 isBreakTime = true;
+                
+                // Send message to background script to start break
+                chrome.runtime.sendMessage({
+                    action: 'startBreak',
+                    isLongBreak: isLongBreak,
+                    pomodoroMode: pomodoroMode
+                });
+                
                 startFocusTimer(duration, null);
                 breakControls.remove();
             };
             
             const skipBreakBtn = document.createElement('button');
-            skipBreakBtn.textContent = 'Skip Break';
+            skipBreakBtn.textContent = 'Skip the break';
             skipBreakBtn.className = 'break-btn secondary';
             skipBreakBtn.onclick = () => {
                 // Skip break and start next focus session
                 isBreakTime = false;
                 const selectedGoal = document.getElementById('selectedGoal').value;
-                const focusDuration = parseInt(document.getElementById('focusDuration').value);
-                startFocusTimer(focusDuration, selectedGoal);
+                
+                // Determine next focus duration based on Mondoro pattern
+                let nextDuration;
+                if (pomodoroMode === 'pomodoro') {
+                    // After first 25-min session, next is 50 min
+                    nextDuration = 50;
+                } else if (pomodoroMode === 'deepFocus') {
+                    // Keep the deep focus duration
+                    nextDuration = 52;
+                } else {
+                    // For custom, double the duration if it was less than 30 min
+                    const currentDuration = parseInt(document.getElementById('focusDuration').value);
+                    nextDuration = currentDuration < 30 ? currentDuration * 2 : currentDuration;
+                }
+                
+                // Update the duration input
+                document.getElementById('focusDuration').value = nextDuration;
+                
+                // Send message to background script to start next focus session
+                chrome.runtime.sendMessage({
+                    action: 'startNextFocus',
+                    selectedGoal: selectedGoal,
+                    pomodoroMode: pomodoroMode,
+                    customDuration: nextDuration,
+                    isFirstSession: false
+                });
+                
+                startFocusTimer(nextDuration, selectedGoal);
                 breakControls.remove();
             };
             
@@ -200,37 +263,52 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } else if (type === 'focus') {
             icon = '🌿';
-            message = `${icon} Break over! Ready for next focus session`;
+            
+            // Get the next focus duration (from the input field, which may have been updated)
+            const nextDuration = parseInt(document.getElementById('focusDuration').value);
+            message = `${icon} Break over! Ready for next focus session (${nextDuration}min)?`;
             
             // Create focus controls
             const focusControls = document.createElement('div');
             focusControls.className = 'break-controls';
             
             const startFocusBtn = document.createElement('button');
-            startFocusBtn.textContent = 'Start Focus';
+            startFocusBtn.textContent = 'Ready for next focus session';
             startFocusBtn.className = 'break-btn primary';
             startFocusBtn.onclick = () => {
                 isBreakTime = false;
                 const selectedGoal = document.getElementById('selectedGoal').value;
                 const focusDuration = parseInt(document.getElementById('focusDuration').value);
+                
+                // Send message to background script to start next focus session
+                chrome.runtime.sendMessage({
+                    action: 'startNextFocus',
+                    selectedGoal: selectedGoal,
+                    pomodoroMode: pomodoroMode,
+                    customDuration: focusDuration,
+                    isFirstSession: false
+                });
+                
                 startFocusTimer(focusDuration, selectedGoal);
                 focusControls.remove();
             };
             
             const skipFocusBtn = document.createElement('button');
-            skipFocusBtn.textContent = 'Not Now';
+            skipFocusBtn.textContent = 'Skip and take another break';
             skipFocusBtn.className = 'break-btn secondary';
             skipFocusBtn.onclick = () => {
-                // Reset UI for next focus session
-                isBreakTime = false;
-                sessionStatus.textContent = 'Ready for next focus session.';
-                focusButton.textContent = 'Start Focus';
-                focusButton.classList.remove('active');
-                document.getElementById('pomodoroPreset').disabled = false;
-                if (document.getElementById('pomodoroPreset').value === 'custom') {
-                    focusDuration.style.display = 'inline-block';
-                    focusDuration.disabled = false;
-                }
+                // Start another break
+                isBreakTime = true;
+                const breakDur = isLongBreak ? 15 : 5;
+                
+                // Send message to background script to start break
+                chrome.runtime.sendMessage({
+                    action: 'startBreak',
+                    isLongBreak: isLongBreak,
+                    pomodoroMode: pomodoroMode
+                });
+                
+                startFocusTimer(breakDur, null);
                 focusControls.remove();
             };
             
@@ -242,26 +320,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } else if (type === 'reward') {
             // Show garden growth notification in the timer area
+            let gardenIcon;
+            
+            // Select a random garden icon based on session type
             if (pomodoroCount % 4 === 0) {
-                icon = '🌻';
-                message = `${icon} Congratulations! You grew a beautiful sunflower in your garden!`;
-            } else {
-                icon = '🌷';
-                message = `${icon} Nice! You added a new flower to your garden!`;
+                // For completed sets of 4 Pomodoros
+                const longSessionIcons = ['🌻', '🌳', '🌴', '🌵', '🌸', '🍎'];
+                gardenIcon = longSessionIcons[Math.floor(Math.random() * longSessionIcons.length)];
+                icon = gardenIcon;
+                message = `${icon} Congratulations! You've completed a focus session!`;
             }
-            
-            sessionStatus.innerHTML = `<span class="reward-message">${message}</span>`;
-            
-            // Automatically start break after showing reward message
-            setTimeout(() => {
-                if (isLongBreak) {
-                    showSessionTransitionModal('break', 15);
-                } else {
-                    showSessionTransitionModal('break', breakDuration);
-                }
-                // Refresh the forest display
-                loadAchievements();
-            }, 2000);
         }
         
         // Play sound alert
