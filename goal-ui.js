@@ -23,7 +23,7 @@ function createGoalInputs() {
         
         const addButton = document.createElement('button');
         addButton.textContent = 'Add';
-        addButton.className = 'add-goal-btn';
+        addButton.className = 'save-btn';
         
         inputContainer.appendChild(input);
         inputContainer.appendChild(addButton);

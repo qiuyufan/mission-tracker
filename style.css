@@ -138,7 +138,7 @@
 }
 
 /* Additional button styles */
-#toggleFocus, #checkIn {
+#checkIn {
     padding: 8px 16px;
     background-color: #007aff;
     color: white;
@@ -150,7 +150,7 @@
     font-weight: 500;
 }
 
-#toggleFocus:hover, #checkIn:hover {
+#checkIn:hover {
     background-color: #0056b3;
 }
 
