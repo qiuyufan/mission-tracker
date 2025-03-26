@@ -60,10 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         badgesContainer.appendChild(forestContainer);
         
-        chrome.storage.local.get(['completedSessions'], (data) => {
-            const completedSessions = data.completedSessions || [];
+        // Get garden state from garden manager
+        window.gardenManager.getGardenState().then(({ garden, streaks }) => {
+            const plants = garden.plants || [];
             
-            if (completedSessions.length === 0) {
+            if (plants.length === 0) {
                 const emptyForest = document.createElement('div');
                 emptyForest.className = 'empty-forest';
                 emptyForest.textContent = 'Complete focus sessions to grow your garden! 🌱';
@@ -71,52 +72,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // Define garden elements based on session duration with random variations
-            const getGardenElement = (duration) => {
-                // Garden-themed icons for different session types
-                const pomodoroIcons = ['🌷', '🌿', '🍀', '🍓', '🍄', '🌱'];
-                const longSessionIcons = ['🌻', '🌳', '🌴', '🌵', '🌸', '🍎'];
-                const mediumSessionIcons = ['🦋', '🐝', '🐞', '🌺', '🌼', '🌹'];
-                const shortSessionIcons = ['🌱', '🌾', '🍃', '🌿', '🍀', '🌱'];
-                
-                // Get random icon from the appropriate array
-                const getRandomIcon = (iconArray) => {
-                    return iconArray[Math.floor(Math.random() * iconArray.length)];
-                };
-                
-                // For Pomodoro sessions (25 min)
-                if (duration === 25) {
-                    const icon = getRandomIcon(pomodoroIcons);
-                    return { icon, name: 'Flower', description: 'A beautiful flower from a completed Pomodoro' };
-                }
-                // For completed sets of 4 Pomodoros or longer sessions
-                if (duration >= 50) {
-                    const icon = getRandomIcon(longSessionIcons);
-                    return { icon, name: 'Sunflower', description: 'A beautiful plant from a long focus session' };
-                }
-                // For medium length sessions
-                if (duration >= 25) {
-                    const icon = getRandomIcon(mediumSessionIcons);
-                    return { icon, name: 'Garden Friend', description: 'A garden friend from a medium focus session' };
-                }
-                // For shorter sessions
-                const icon = getRandomIcon(shortSessionIcons);
-                return { icon, name: 'Sprout', description: 'A young sprout from a short session' };
-            };
-            
-            // Render each garden element for completed sessions
-            completedSessions.forEach(session => {
-                const gardenElement = getGardenElement(session.duration);
-                
+            // Render each plant in the garden
+            plants.forEach(plant => {
                 const tree = document.createElement('div');
                 tree.className = 'tree';
                 
+                // Add special classes for special plants
+                if (plant.isStreakReward) {
+                    tree.classList.add('streak-reward');
+                }
+                if (plant.isProgressReward) {
+                    tree.classList.add('progress-reward');
+                }
+                if (plant.evolvedFrom) {
+                    tree.classList.add('evolved');
+                }
+                
                 const treeIcon = document.createElement('div');
                 treeIcon.className = 'tree-icon';
-                treeIcon.textContent = gardenElement.icon;
+                treeIcon.textContent = plant.icon;
                 
-                // Add tooltip for garden element details
-                tree.title = `${gardenElement.name}: ${gardenElement.description}`;
+                // Add tooltip with plant details
+                let tooltipText = `${plant.variant}`;
+                
+                if (plant.evolvedFrom) {
+                    tooltipText += ` (evolved from ${plant.evolvedFrom.join(', ')})`;
+                }
+                if (plant.isStreakReward) {
+                    tooltipText += ` - ${plant.streakDays}-day streak reward!`;
+                }
+                if (plant.sessionDuration) {
+                    tooltipText += ` - ${plant.sessionDuration} min session`;
+                }
+                
+                tree.title = tooltipText;
                 
                 tree.appendChild(treeIcon);
                 forestContainer.appendChild(tree);
@@ -126,18 +115,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const forestStats = document.createElement('div');
             forestStats.className = 'forest-stats';
             
-            // Count different garden elements
-            const sproutCount = completedSessions.filter(s => s.duration < 25).length;
-            const butterflyCount = completedSessions.filter(s => s.duration >= 25 && s.duration < 50).length;
-            const sunflowerCount = completedSessions.filter(s => s.duration >= 50).length;
+            // Count plants by type
+            const plantCounts = {};
+            Object.values(window.gardenManager.PLANT_TYPES).forEach(type => {
+                plantCounts[type] = plants.filter(p => p.type === type).length;
+            });
             
+            // Create stats display
             forestStats.innerHTML = `
-                <span>🌱 Garden: ${completedSessions.length} elements total</span>
-                ${sunflowerCount > 0 ? `<span> • 🌻 ${sunflowerCount} sunflower${sunflowerCount !== 1 ? 's' : ''}</span>` : ''}
-                ${butterflyCount > 0 ? `<span> • 🦋 ${butterflyCount} butterfly${butterflyCount !== 1 ? 'ies' : 'y'}</span>` : ''}
-                ${sproutCount > 0 ? `<span> • 🌱 ${sproutCount} sprout${sproutCount !== 1 ? 's' : ''}</span>` : ''}
+                <span>🌱 Garden: ${plants.length} plants total</span>
+                ${plantCounts.flower > 0 ? `<span> • 🌸 ${plantCounts.flower} flower${plantCounts.flower !== 1 ? 's' : ''}</span>` : ''}
+                ${plantCounts.bush > 0 ? `<span> • 🌿 ${plantCounts.bush} bush${plantCounts.bush !== 1 ? 'es' : ''}</span>` : ''}
+                ${plantCounts.tree > 0 ? `<span> • 🌳 ${plantCounts.tree} tree${plantCounts.tree !== 1 ? 's' : ''}</span>` : ''}
+                ${plantCounts.sprout > 0 ? `<span> • 🌱 ${plantCounts.sprout} sprout${plantCounts.sprout !== 1 ? 's' : ''}</span>` : ''}
+                ${plantCounts.golden > 0 ? `<span> • 🌟 ${plantCounts.golden} golden flower${plantCounts.golden !== 1 ? 's' : ''}</span>` : ''}
             `;
+            
+            // Add streak information
+            if (streaks && streaks.current > 0) {
+                const streakInfo = document.createElement('div');
+                streakInfo.className = 'streak-info';
+                streakInfo.innerHTML = `<span>🔥 Current streak: ${streaks.current} day${streaks.current !== 1 ? 's' : ''}</span>`;
+                
+                if (streaks.longestStreak > streaks.current) {
+                    streakInfo.innerHTML += ` <span>(Longest: ${streaks.longestStreak} days)</span>`;
+                }
+                
+                forestStats.appendChild(streakInfo);
+            }
+            
             badgesContainer.appendChild(forestStats);
+            
+            // Show weekly summary if available
+            if (garden.lastWeekSummary) {
+                const summaryContainer = document.createElement('div');
+                summaryContainer.className = 'weekly-summary';
+                summaryContainer.innerHTML = `<p>${garden.lastWeekSummary.message}</p>`;
+                badgesContainer.appendChild(summaryContainer);
+            }
         });
     }
     

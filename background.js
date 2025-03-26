@@ -70,9 +70,8 @@ function updateTimer() {
         // If this was a focus session (not a break), update goal progress and add to garden
         if (!isBreakTime && selectedGoal) {
             const [tier, index] = selectedGoal.split('-');
-            chrome.storage.local.get(['goals', 'completedSessions'], (data) => {
+            chrome.storage.local.get(['goals'], (data) => {
                 const goals = data.goals || {};
-                const completedSessions = data.completedSessions || [];
                 
                 // Update goal progress
                 if (goals[tier] && goals[tier][index]) {
@@ -82,25 +81,41 @@ function updateTimer() {
                     const progress = Math.min(100, Math.round((timeSpent / (8 * 3600)) * 100));
                     goals[tier][index] = { ...goal, timeSpent, progress };
                     
-                    // Add to completed sessions for garden
-                    completedSessions.push({
-                        duration: focusSession.duration,
-                        completedAt: new Date().toISOString(),
-                        goal: selectedGoal
-                    });
-                    
-                    chrome.storage.local.set({ goals, completedSessions }, () => {
-                        console.log('[BG] Updated goals and garden:', goals);
-                        // Send message to popup to refresh garden display
-                        chrome.runtime.sendMessage({
-                            action: 'refreshGarden'
-                        });
+                    // Save updated goals
+                    chrome.storage.local.set({ goals }, () => {
+                        console.log('[BG] Updated goals:', goals);
+                        
+                        // Process the completed session for garden evolution
+                        window.gardenManager.processCompletedSession(focusSession.duration, selectedGoal)
+                            .then(result => {
+                                console.log('[BG] Garden updated with new plant:', result.newPlant);
+                                
+                                // Check if any evolutions occurred
+                                if (result.evolutions && result.evolutions.length > 0) {
+                                    console.log('[BG] Plants evolved:', result.evolutions);
+                                }
+                                
+                                // Send message to popup to refresh garden display
+                                chrome.runtime.sendMessage({
+                                    action: 'refreshGarden'
+                                });
+                            });
                     });
                 } else {
                     console.warn('[BG] Goal not found for', selectedGoal);
+                    
+                    // Still process the completed session for garden even without a goal
+                    window.gardenManager.processCompletedSession(focusSession.duration, null)
+                        .then(result => {
+                            console.log('[BG] Garden updated with new plant (no goal):', result.newPlant);
+                            chrome.runtime.sendMessage({
+                                action: 'refreshGarden'
+                            });
+                        });
                 }
             });
         }
+        
         
         // Stop the current session
         stopFocusSession();

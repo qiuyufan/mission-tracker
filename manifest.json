@@ -5,21 +5,21 @@
   "description": "Track your goals and focus sessions",
   "permissions": ["storage", "tabs", "notifications"],
   "background": {
-    "scripts": ["background.js"],
+    "scripts": ["garden.js", "background.js"],
     "persistent": true
   },
   "browser_action": {
     "default_icon": {
-      "16": "icon16.svg",
-      "48": "icon48.svg",
-      "128": "icon128.svg"
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
     },
     "default_title": "Mission Tracker"
   
   },
   "icons": {
-    "16": "icon16.svg",
-    "48": "icon48.svg",
-    "128": "icon128.svg"
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   }
 }
